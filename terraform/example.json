@@ -4,11 +4,12 @@
   "assume_role_arn": "",
 
   "env": "dev",
-  "name": "<project>",
+  "name": "lambdachecks",
 
-  "user": "admin",
-  "password": "CHANGE-ME",
+  "secret_key": "CHANGE-ME-to-a-long-random-string",
+  "registration_open": false,
 
-  "endpoint_auth": "NONE",
-  "console": true
+  "db_name": "healthchecks",
+
+  "architecture": "arm64"
 }

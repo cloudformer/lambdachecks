@@ -7,10 +7,10 @@ notes keep resolving. Numbers are never reused.
 
 | task | what |
 |---|---|
-| 1 | <first gap> |
-
-Permanent, not tasks: ⚪ quirks (documented behaviour of <replaces> we do not imitate) and ⛔ unsupported
-(<what needs a real server>).
+| 1 | Alerts: a second Lambda (same package) run by EventBridge once a minute, one `sendalerts` pass |
+| 2 | Comparison suite: Healthchecks Management API v3 + ping endpoints, Healthchecks v5.0.3 in Docker vs lambdachecks |
+| 3 | Email (SES): login links, email alerts |
+| 4 | `sendreports` and pruning commands, one EventBridge schedule each |
 
 ## Done
 

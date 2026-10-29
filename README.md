@@ -1,120 +1,95 @@
-# <project> — a truly serverless <replaces>
+# lambdachecks — Healthchecks on AWS Lambda, ≈ $0 when idle
 
-<!-- template: replace every <placeholder>, keep the section order (it is the series standard, see SERIES.md) -->
+> **[Healthchecks](https://github.com/healthchecks/healthchecks)** (cron / scheduled-job monitoring) normally runs
+> on an always-on server and database. **lambdachecks** runs the same Healthchecks release, **unchanged**, on one
+> AWS Lambda behind a Function URL, with its database on **[s3rds](https://github.com/cloudformer/s3rds)**
+> (SQLite on S3, serverless), deployed together as one stack. Nothing runs while nobody uses it. Only the host changes.
 
-> **<replaces>** bills while idle. **<project>** does the same job on **<built on>** and costs ≈ $0 when nothing happens.
-> Same client API; when you outgrow it, go back to the real service by changing one import line.
-
-[中文](README.zh.md) · [compatibility report](tests/compat/REPORT.md) · [tasks](tests/compat/TASKS.md) · [changelog](CHANGELOG.md)
+[中文](README.zh.md) · [changelog](CHANGELOG.md) · [moving to a normal deployment](MIGRATION.md)
 
 ![architecture](docs/architecture.svg)
 
-| | <replaces> | <project> |
+| | Healthchecks self-hosted | lambdachecks |
 |---|---|---|
-| Idle cost / month | <idle cost> | ≈ $0 |
-| Endpoint | <host:port> | Lambda Function URL |
-| Storage | <storage> | <built on> |
-| Client | `import <client>` | `from <project> import <client>` |
-| Console | <their console> | built-in web console (Lambda URL) |
-| Client compatibility | — | [<n>% of <m> features](tests/compat/REPORT.md) |
+| Code | Healthchecks v5.0.3 | the same release, unchanged (`hc/local_settings.py` only) |
+| Web server | gunicorn, always on | one Lambda + Function URL (a small WSGI adapter) |
+| Database | PostgreSQL / a SQLite file | s3rds v0.2.1 in the same stack: a Lambda + one private S3 bucket (`"ENGINE": "s3rds.sqlite"`) |
+| Static files | whitenoise | whitenoise (collected + compressed at build time) |
+| Idle cost / month | a VM + a database | ≈ $0 |
+| Scale | any | small: MVP, dev / staging (tens of checks) |
 
-## Why
+## Who this is for: small scale — MVPs, side projects, dev / staging
 
-<two or three sentences: what the real service costs idle, what this is built on, who it is for>
+Tens of checks, a few pings a minute, bursts of a few dozen at the same minute: ≈ $0 when idle, a few cents a
+month in use. Every write (each ping) uploads the database file once and s3rds has one writer, so writes queue up:
+- concurrent pings wait their turn (a busy writer is retried for ~10 s); keep `curl --retry 3` on ping clients;
+- the larger the database, the slower each write.
 
-## How it works
+Hundreds of checks, pings every second, or alerts that must fire within seconds: move to a normal Healthchecks
+on PostgreSQL ([MIGRATION.md](MIGRATION.md)) — the same release, only the host and the database change.
 
-<one paragraph + the architecture image above. Name the AWS primitives and what each one holds.>
+## Status: 0.1.0
+
+0.1.0 = Healthchecks runs on Lambda, the UI logs in (password login), the database is s3rds. Not yet: the alerts
+Lambda (`sendalerts` once a minute from EventBridge), end-to-end pings, email, `sendreports` / pruning schedules,
+the comparison suite against Healthchecks in Docker. Each comes with its own version.
 
 ## Quick start
 
+Needs: Terraform, Docker running (the packages are built in AWS's Lambda Python images), the AWS CLI. One
+`terraform apply` creates everything: Healthchecks' two Lambdas, and its database — s3rds' released server as a
+Lambda plus a private S3 bucket, with a generated password.
+
 ### 1. Deploy
 
-**Terraform**
-
 ```bash
-cp terraform/example.json terraform/my.json      # set aws_profile, env, user, password
+cp terraform/example.json terraform/real-lambdachecks.json   # aws_profile, secret_key
 terraform -chdir=terraform init
-terraform -chdir=terraform apply -var-file=my.json
-terraform -chdir=terraform output                 # console_url
-terraform -chdir=terraform destroy -var-file=my.json   # tear everything down
+terraform -chdir=terraform apply -var-file=real-lambdachecks.json   # first run: builds both architectures in Docker, minutes
+terraform -chdir=terraform output                                   # url, manage_function, db_url, db_user
 ```
 
-**CloudFormation** (AWS CLI only; optional, from <version> — delete this block until it exists)
+### 2. Set up in the browser
+
+Open `url`. Until the first account exists, every page is the setup page; each step asks for the setup key,
+which is `secret_key` from your variable file (so nobody else can claim a fresh deployment):
+
+1. **Run migrations**: Healthchecks' and Django's migrations (about 200), run in the `lambdachecks-manage` function (it creates the
+   database in s3rds first). One HTTPS call per statement: a few minutes; the page refreshes and shows
+   `applied / total`. If it stops at the function's 15-minute limit, click again: it continues where it stopped.
+2. **Create the account**: email + password of the first (super)user. Then you land on the login page.
+
+The setup page is gone once that account exists. Without a browser:
+`aws lambda invoke --function-name lambdachecks-manage --cli-binary-format raw-in-base64-out --payload '{"manage": ["migrate", "--noinput"]}' /dev/stdout`
+(any `manage.py` command works the same way).
+
+### 3. Log in
+
+Sign in at `url` with that email and password. The database: open `db_url` (s3rds' console), sign in with
+`db_user` and `terraform -chdir=terraform output -raw db_password`; Healthchecks' tables are in `healthchecks`.
 
 ```bash
-cp cloudformation/example-params.json cloudformation/params.json
-aws cloudformation package --template-file cloudformation/template.yaml \
-    --s3-bucket <any-bucket-you-own> --output-template-file /tmp/<project>.yaml
-aws cloudformation deploy --template-file /tmp/<project>.yaml --stack-name <project> \
-    --capabilities CAPABILITY_IAM --parameter-overrides file://cloudformation/params.json
+terraform -chdir=terraform destroy -var-file=real-lambdachecks.json   # removes everything, the database (S3 bucket) too
 ```
 
-### 2. Open the console
+## What differs from a normal Healthchecks
 
-Open `console_url` in a browser, sign in with `user` / `password`. <what the console shows and does>.
-
-### 3. Connect from code
-
-```bash
-pip install <project>
-```
-
-```python
-from <project> import <client>        # later: `import <client>` against the real service, nothing else changes
-
-<five-line example of the standard client's API>
-```
-
-## Compatibility
-
-[tests/compat/REPORT.md](tests/compat/REPORT.md) is regenerated by every test run: the same operations run on the
-real <replaces> (Docker) and on <project>, comparing results, types and errors.
-
-| Status | Meaning |
-|---|---|
-| ✅ verified | identical to the reference; safe to rely on |
-| ❌ gap | known difference; the note names the task in [TASKS.md](tests/compat/TASKS.md) that closes it |
-| ⚪ quirk | documented behaviour of the real service we deliberately do not imitate |
-| ⛔ unsupported | refused with `NotSupportedError` — never silently different |
-
-```bash
-python3 -m pytest tests -q                 # leaves Docker alone: live if <replaces> is running, else <the fallback>
-python3 -m pytest tests -q --docker up     # starts <replaces> in Docker, waits until healthy, tests; keeps it running
-python3 -m pytest tests -q --docker run    # the same, then stops it if all passed (on a failure it keeps running)
-python3 -m pytest tests -q --docker down   # the same, then stops it whatever the result
-```
-
-## Guarantees
-
-| | How |
-|---|---|
-| **Atomicity** | <...> |
-| **Durability** | <...> |
-| **Isolation** | <...> |
-| **Availability** | Lambda / <built on> are regional, multi-AZ services: no instance to fail, no maintenance window |
-
-## Who this is for
-
-<the fit: what code patterns work, what does not, and that the "does not" is the moment to move to <replaces> — see MIGRATION.md>
+- **Sign-in**: password only for now (no email configured, so no magic links); `registration_open` false by default.
+- **Concurrent writes**: two pings writing the same s3rds database at once can make one fail (HTTP 500); ping
+  clients retry (`curl --retry 3`). Healthchecks on SQLite has the same class of behaviour ("database is locked").
+- **Cold start**: the first request after a while loads Django (a few seconds).
 
 ## Repository layout
 
 ```
-src/server/       the service: lambda_function.py (HTTP API + console), index.html
-client/           the pip package <project>: <project>/<client>.py, pyproject.toml
-terraform/        deployment, option A
-cloudformation/   deployment, option B (optional, after 0.1.0)
-tests/            regression suite; tests/compat/ compatibility suite, REPORT.md, TASKS.md
+src/server/       lambda_function.py (WSGI adapter, setup page, manage entry), local_settings.py (-> hc/local_settings.py), requirements.txt
+scripts/          build_server.py: both packages, per architecture (run by Terraform): Healthchecks + src/server,
+                  s3rds' server (its release, unchanged)
+terraform/        deployment: Healthchecks' Lambdas + s3rds (Lambda + S3 bucket), one stack
+tests/            regression suite (the adapter); tests/compat/ the comparison suite (later)
 ```
-
-## Releasing
-
-CI runs the whole suite on every push. A release is a tag: bump the version in `client/pyproject.toml` and
-`client/<project>/__init__.py`, add the CHANGELOG entry, commit, then `git tag vX.Y.Z && git push --tags`
-(tests → build → PyPI trusted publishing; the tag must equal the version).
 
 ---
 
-Part of **[Redefine AWS Serverless](https://github.com/topics/redefine-aws-serverless)** — AWS services that bill
-while idle, rebuilt on primitives that cost ≈ $0 when idle. MIT.
+Part of **[IdleFree](https://cloudformer.github.io/)** — AWS services and self-hosted apps rebuilt to cost ≈ $0 when
+idle. MIT.

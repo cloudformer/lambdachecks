@@ -15,14 +15,15 @@ import platform
 import re
 
 CONFIG = {
-    "title": "<project> compatibility report",
+    "title": "lambdachecks compatibility report",
     "report": os.path.join(os.path.dirname(__file__), "compat", "REPORT.md"),
     # (key, section title, substring of the test file name, reference description or callable)
     "suites": [
-        ("reference", "<project>.<client> vs <replaces>", "test_reference",
-         lambda: versions.get("reference") or "<replaces> (not run)"),
+        ("reference", "lambdachecks vs Healthchecks (Docker)", "test_reference",
+         lambda: versions.get("reference") or "Healthchecks (not run)"),
     ],
-    "version": lambda: os.environ["PACKAGE"] + " " + __import__(os.environ["PACKAGE"]).__version__,
+    "version": lambda: "lambdachecks · Healthchecks v" + re.search(r'^HEALTHCHECKS = "([^"]+)"', open(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "scripts", "build_server.py"), encoding="utf-8").read(), re.M).group(1),
     "categories": ["Basics", "Data", "Queries", "Errors", "Metadata", "Unsupported", "General"],
     # Optional "Test scope" table at the top of REPORT.md: which test covers which business step.
     # (business step, how it is tested, ["file.py::test_name", ...], still to do or None); status is computed.

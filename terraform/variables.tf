@@ -23,46 +23,39 @@ variable "assume_role_arn" {
 
 # ---- app ----
 variable "env" {
-  description = "Environment label (tags, resource names)"
+  description = "Environment label (tags)"
   type        = string
   default     = "dev"
 }
 
 variable "name" {
-  description = "Project name; resources are <name>-lambda, <name>-lambda-role"
+  description = "Project name; resources are <name>-lambda, <name>-manage, <name>-db-lambda, <name>-db-<account id> (bucket), roles"
   type        = string
-  default     = "<project>"
+  default     = "lambdachecks"
 }
 
-# ---- the service's credentials (HTTP Basic on the Function URL) ----
-variable "user" {
-  type = string
-}
-
-variable "password" {
-  type      = string
-  sensitive = true
-}
-
-# ---- the endpoint's gate ----
-variable "endpoint_auth" {
-  description = <<-EOT
-    How the Function URL is protected:
-      NONE    = public URL; only user/password (HTTP Basic) is checked      <- default
-      AWS_IAM = AWS checks a SigV4 signature + IAM permission first. The browser console
-                cannot sign requests, so it is unusable in this mode.
-  EOT
+variable "secret_key" {
+  description = "Django's SECRET_KEY (sessions, CSRF, signed links); any long random string, keep it stable"
   type        = string
-  default     = "NONE"
-
-  validation {
-    condition     = contains(["NONE", "AWS_IAM"], var.endpoint_auth)
-    error_message = "endpoint_auth must be NONE or AWS_IAM."
-  }
+  sensitive   = true
 }
 
+variable "registration_open" {
+  description = "Let anyone sign up from the login page (Healthchecks' REGISTRATION_OPEN). false = accounts via createsuperuser only."
+  type        = bool
+  default     = false
+}
+
+# ---- the database: s3rds, deployed with this stack ----
+variable "db_name" {
+  description = "Healthchecks' database in s3rds; the manage function creates it if missing"
+  type        = string
+  default     = "healthchecks"
+}
+
+# ---- the Lambda ----
 variable "architecture" {
-  description = "The architecture this deployment runs: arm64 (Graviton, ~20% cheaper) or x86_64; both are built and tested"
+  description = "The architecture this deployment runs: arm64 (Graviton, ~20% cheaper) or x86_64; both are built"
   type        = string
   default     = "arm64"
 
@@ -72,8 +65,8 @@ variable "architecture" {
   }
 }
 
-variable "console" {
-  description = "Serve the built-in web console at GET /. false = API only."
-  type        = bool
-  default     = true
+variable "memory_size" {
+  description = "MB; more memory = more CPU = faster Django cold starts and password hashing"
+  type        = number
+  default     = 1024
 }

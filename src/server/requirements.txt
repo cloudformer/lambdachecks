@@ -1,0 +1,3 @@
+# installed next to Healthchecks' own requirements.txt (scripts/build_server.py)
+s3rds==0.2.1
+sqlglot==30.24.0

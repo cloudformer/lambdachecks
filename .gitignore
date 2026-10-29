@@ -2,14 +2,9 @@ __pycache__/
 *.pyc
 .DS_Store
 .pytest_cache/
-# real deployment variables (secrets) — only example.json / example-params.json are committed
+# real deployment variables (secrets) — only example.json is committed
 terraform/*.json
 !terraform/example.json
 terraform/.terraform/
 terraform/.build/
 terraform/state/
-cloudformation/params.json
-# pip build output
-client/dist/
-client/build/
-client/*.egg-info/

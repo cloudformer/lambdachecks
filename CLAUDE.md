@@ -1,6 +1,14 @@
-# <project> — working notes for Claude
+# lambdachecks — working notes for Claude
 
-This repository is one project of the **Redefine AWS Serverless** series (SERIES.md): an AWS service that
+**This project is app-serverless** (Healthchecks, unchanged, on Lambda; its own s3rds — released server Lambda +
+S3 bucket — in the same Terraform stack, one architecture), not an AWS service
+behind its client: there is no `client/`, no driver, nothing on PyPI yet (do not push a `v*` tag until publish.yml
+fits). Healthchecks and s3rds are pinned in scripts/build_server.py (`HEALTHCHECKS`, `S3RDS`; the s3rds client version in
+src/server/requirements.txt matches); never reference another local repo; configuration only in
+src/server/local_settings.py. Frank's var file: `terraform/real-lambdachecks.json`. Positioning (Frank, 2026-10-29): small scale — MVP, dev / staging;
+s3rds' writes (whole-file upload, one writer) are the limit, write-path work belongs in s3rds. The series template text follows.
+
+This repository is one project of the **IdleFree** series (cloudformer.github.io; SERIES.md in the template): an AWS service that
 bills while idle, rebuilt on primitives that cost ≈ $0 when idle, behind the standard client's API.
 s3rds (github.com/cloudformer/s3rds) is the reference implementation; when in doubt, do what it does.
 
