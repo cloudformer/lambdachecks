@@ -51,22 +51,38 @@ Category in SERIES.md (template repo): app-serverless, next to lambdavault (the 
 | email (login links, alerts) | first version: password login (`createsuperuser`), alerts through webhook / Slack integrations. SES later |
 | `sendreports` (monthly reports), pruning commands | later: one EventBridge schedule each |
 
-## Deliverables of 0.1.0
+## 0.1.0 scope (Frank, 2026-10-29): it runs on Lambda, the UI logs in, the database is s3rds
 
-1. `src/server/` (or the layout CLAUDE.md prescribes): Lambda entry points — web (WSGI adapter) and alerts (one
-   sendalerts pass) — plus `local_settings.py` (ENGINE s3rds.sqlite, ALLOWED_HOSTS / SITE_ROOT from the Function
-   URL, SECRET_KEY from the environment, REGISTRATION_OPEN false by default).
+0.1.0 is done when, and only when:
+
+1. `terraform apply` deploys the **web Lambda + Function URL**;
+2. the Healthchecks **UI opens** at the Function URL and **login works** (a superuser created with
+   `createsuperuser`, password login);
+3. the **database is Frank's existing s3rds** (`"ENGINE": "s3rds.sqlite"`, database `healthchecks`), migrated
+   (`manage.py migrate`, all 187 migrations) — the tables are visible in s3rds' console.
+
+Everything else is **not** 0.1.0 and waits for its own version: the alerts Lambda + EventBridge (`sendalerts`),
+pings end to end, webhook / Slack / email notifications, `sendreports` and pruning schedules, the Docker
+comparison suite and REPORT.md, the README's full cost / difference sections. Keep the code and Terraform ready
+for them (one package, one more Lambda later), but do not build them now.
+
+## Deliverables (0.1.0 first, then later versions)
+
+1. `src/server/` (or the layout CLAUDE.md prescribes): the web Lambda entry point (WSGI adapter) — 0.1.0; the
+   alerts entry point (one sendalerts pass) — later — plus `local_settings.py` (ENGINE s3rds.sqlite,
+   ALLOWED_HOSTS / SITE_ROOT from the Function URL, SECRET_KEY from the environment, REGISTRATION_OPEN false by
+   default) — 0.1.0.
 2. A build script (like s3rds' scripts/build_server.py): fetch Healthchecks v5.0.3, install its requirements for
    Linux (`--platform manylinux2014_x86_64` / aarch64 per `var.architecture`, `--only-binary=:all:`; pycurl,
    argon2-cffi, cryptography need wheels), add `s3rds`, run collectstatic + compress, zip. Check the 250 MB
    unzipped limit; fall back to a container image (ECR) only if it does not fit.
-3. Terraform (`terraform -chdir=terraform …`): web Lambda + Function URL, alerts Lambda + EventBridge rule
-   (rate 1 minute), IAM least privilege (logs only — the database is reached over HTTPS with s3rds credentials),
+3. Terraform (`terraform -chdir=terraform …`): web Lambda + Function URL (0.1.0), alerts Lambda + EventBridge
+   rule (rate 1 minute, later), IAM least privilege (logs only — the database is reached over HTTPS with s3rds credentials),
    variables for the s3rds endpoint / user / password and SECRET_KEY; `example.json` committed, real var files
    gitignored. Frank's var file name for this project: ask him (for s3rds it is `real-srds.json`, never assume
    `my.json`).
 4. First run: `manage.py migrate` against s3rds (from the laptop or a one-off Lambda invocation), `createsuperuser`.
-5. README / README.zh.md: architecture image on top (your code / cron jobs → Function URL → Lambda → s3rds;
+5. README / README.zh.md (0.1.0: deploy, migrate, log in; the rest grows with later versions): architecture image on top (your code / cron jobs → Function URL → Lambda → s3rds;
    EventBridge → alerts Lambda), then a "switch" table (left: Healthchecks self-hosted, right: lambdachecks —
    the only change: the host), then "the server: deploy once, ≈ $0 when idle", cost comparison
    (self-hosted VM + database vs healthchecks.io plans vs lambdachecks), what differs (alerts ≤ 1 min later,
@@ -75,10 +91,15 @@ Category in SERIES.md (template repo): app-serverless, next to lambdavault (the 
 
 ## Acceptance (Frank runs every command)
 
-1. `terraform apply` → the UI opens at the Function URL, login works.
-2. Create a check, `curl` its ping URL → the ping shows in the UI; s3rds' console shows the row.
-3. Let a check go down → within ~1 minute the alerts Lambda flips it and the webhook fires.
-4. Compatibility (the project's own method, CLAUDE.md principle 5): the same API calls (Healthchecks Management
+0.1.0:
+1. `terraform apply` → the web Lambda is up; the UI opens at the Function URL.
+2. `manage.py migrate` against s3rds finishes; `createsuperuser`; login in the UI works.
+3. s3rds' console lists Healthchecks' tables in the database `healthchecks`; creating a check in the UI adds a row.
+
+Later versions:
+1. Create a check, `curl` its ping URL → the ping shows in the UI; s3rds' console shows the row.
+2. Let a check go down → within ~1 minute the alerts Lambda flips it and the webhook fires.
+3. Compatibility (the project's own method, CLAUDE.md principle 5): the same API calls (Healthchecks Management
    API v3 + ping endpoints) against Healthchecks v5.0.3 in Docker and against lambdachecks; results compared,
    REPORT.md generated.
 
