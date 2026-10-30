@@ -46,7 +46,7 @@ Lambda plus a private S3 bucket, with a generated password.
 cp terraform/example.json terraform/real-lambdachecks.json   # aws_profile, secret_key
 terraform -chdir=terraform init
 terraform -chdir=terraform apply -var-file=real-lambdachecks.json   # first run: builds both architectures in Docker, minutes
-terraform -chdir=terraform output                                   # url, manage_function, db_url, db_user
+terraform -chdir=terraform output                                   # url, manage_function, db_url
 ```
 
 ### 2. Set up in the browser
@@ -66,7 +66,7 @@ The setup page is gone once that account exists. Without a browser:
 ### 3. Log in
 
 Sign in at `url` with that email and password. The database: open `db_url` (s3rds' console), sign in with
-`db_user` and `terraform -chdir=terraform output -raw db_password`; Healthchecks' tables are in `healthchecks`.
+`db_console_auth_username` / `db_console_auth_password` from your var file; Healthchecks' tables are in `healthchecks`.
 
 ```bash
 terraform -chdir=terraform destroy -var-file=real-lambdachecks.json   # removes everything, the database (S3 bucket) too

@@ -1,16 +1,15 @@
 data "aws_caller_identity" "me" {}
 
 locals {
-  role    = "${var.name}-lambda-role"
-  db_role = "${var.name}-db-lambda-role"
+  role    = "${var.project_name}-lambda-role"
+  db_role = "${var.project_name}-db-lambda-role"
   prefix  = "db/" # s3rds' fixed layout: s3://<bucket>/db/<db>.sqlite
-  db_user = var.name
   env = {
     SECRET_KEY        = var.secret_key
     DB_HOST           = trimsuffix(trimprefix(aws_lambda_function_url.db.function_url, "https://"), "/")
     DB_NAME           = var.db_name
-    DB_USER           = local.db_user
-    DB_PASSWORD       = random_password.db.result
+    DB_USER           = var.db_console_auth_username
+    DB_PASSWORD       = var.db_console_auth_password
     REGISTRATION_OPEN = var.registration_open ? "True" : "False"
   }
 }
@@ -37,8 +36,8 @@ data "archive_file" "db" {
 
 # every database file lives in this one private bucket
 resource "aws_s3_bucket" "db" {
-  bucket        = "${var.name}-db-${data.aws_caller_identity.me.account_id}" # global name; the account id keeps it unique
-  force_destroy = true                                                       # destroy must work: it deletes the data too
+  bucket        = "${var.project_name}-db-${data.aws_caller_identity.me.account_id}" # global name; the account id keeps it unique
+  force_destroy = true                                                               # destroy must work: it deletes the data too
 }
 
 resource "aws_s3_bucket_public_access_block" "db" {
@@ -47,12 +46,6 @@ resource "aws_s3_bucket_public_access_block" "db" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
-}
-
-# s3rds' user / password: generated, only Healthchecks and you (terraform output) know it
-resource "random_password" "db" {
-  length  = 32
-  special = false
 }
 
 resource "aws_iam_role" "db" {
@@ -94,7 +87,7 @@ resource "aws_iam_role_policy" "db" {
 }
 
 resource "aws_lambda_function" "db" {
-  function_name    = "${var.name}-db-lambda"
+  function_name    = "${var.project_name}-db-lambda"
   role             = aws_iam_role.db.arn
   runtime          = "python3.12" # s3rds' own runtime (scripts/build_server.py)
   architectures    = [var.architecture]
@@ -111,8 +104,8 @@ resource "aws_lambda_function" "db" {
     variables = {
       DB_BUCKET   = aws_s3_bucket.db.bucket
       DB_PREFIX   = local.prefix
-      DB_USER     = local.db_user
-      DB_PASSWORD = random_password.db.result
+      DB_USER     = var.db_console_auth_username
+      DB_PASSWORD = var.db_console_auth_password
       CONSOLE     = "1" # s3rds' console at db_url: Healthchecks' tables and rows
     }
   }
@@ -178,7 +171,7 @@ resource "aws_iam_role_policy" "lambda" {
 
 # the web: Healthchecks (UI, API, ping URLs) behind a Function URL
 resource "aws_lambda_function" "server" {
-  function_name    = "${var.name}-lambda"
+  function_name    = "${var.project_name}-lambda"
   role             = aws_iam_role.lambda.arn
   runtime          = "python3.13"
   architectures    = [var.architecture]
@@ -190,7 +183,7 @@ resource "aws_lambda_function" "server" {
 
   environment {
     # SITE_ROOT comes from the first request (lambda_function.py); the setup page starts migrate in the manage function
-    variables = merge(local.env, { MANAGE_FUNCTION = "${var.name}-manage" })
+    variables = merge(local.env, { MANAGE_FUNCTION = "${var.project_name}-manage" })
   }
 }
 
@@ -219,7 +212,7 @@ resource "aws_lambda_permission" "url_invoke" {
 # manage.py: the same package, no URL, 15 minutes. The setup page starts migrate here; by hand:
 # aws lambda invoke --function-name <name>-manage --payload '{"manage": ["migrate", "--noinput"]}' ...
 resource "aws_lambda_function" "manage" {
-  function_name    = "${var.name}-manage"
+  function_name    = "${var.project_name}-manage"
   role             = aws_iam_role.lambda.arn
   runtime          = "python3.13"
   architectures    = [var.architecture]

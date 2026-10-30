@@ -4,7 +4,6 @@ terraform {
     aws      = { source = "hashicorp/aws", version = "~> 6.0" }
     archive  = { source = "hashicorp/archive", version = "~> 2.4" }
     external = { source = "hashicorp/external", version = "~> 2.3" }
-    random   = { source = "hashicorp/random", version = "~> 3.6" }
   }
 }
 
@@ -20,11 +19,11 @@ provider "aws" {
     for_each = var.assume_role_arn != "" ? [1] : []
     content {
       role_arn     = var.assume_role_arn
-      session_name = "${var.name}-deploy"
+      session_name = "${var.project_name}-deploy"
     }
   }
 
   default_tags {
-    tags = { project = var.name, env = var.env }
+    tags = { project = var.project_name, env = var.env }
   }
 }

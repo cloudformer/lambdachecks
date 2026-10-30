@@ -28,8 +28,8 @@ variable "env" {
   default     = "dev"
 }
 
-variable "name" {
-  description = "Project name; resources are <name>-lambda, <name>-manage, <name>-db-lambda, <name>-db-<account id> (bucket), roles"
+variable "project_name" {
+  description = "Project name; resources are <project_name>-lambda, <project_name>-manage, <project_name>-db-lambda, <project_name>-db-<account id> (bucket), roles"
   type        = string
   default     = "lambdachecks"
 }
@@ -51,6 +51,17 @@ variable "db_name" {
   description = "Healthchecks' database in s3rds; the manage function creates it if missing"
   type        = string
   default     = "healthchecks"
+}
+
+variable "db_console_auth_username" {
+  description = "s3rds' HTTP Basic user: Healthchecks connects with it, and you sign in to db_url's console with it"
+  type        = string
+}
+
+variable "db_console_auth_password" {
+  description = "s3rds' HTTP Basic password (Healthchecks and db_url's console)"
+  type        = string
+  sensitive   = true
 }
 
 # ---- the Lambda ----

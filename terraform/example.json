@@ -4,12 +4,15 @@
   "assume_role_arn": "",
 
   "env": "dev",
-  "name": "lambdachecks",
+  "project_name": "lambdachecks",
 
   "secret_key": "CHANGE-ME-to-a-long-random-string",
   "registration_open": false,
 
   "db_name": "healthchecks",
+  "db_console_auth_username": "lambdachecks",
+  "db_console_auth_password": "CHANGE-ME",
 
-  "architecture": "arm64"
+  "architecture": "arm64",
+  "memory_size": 1024
 }

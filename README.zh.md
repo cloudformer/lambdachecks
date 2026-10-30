@@ -43,7 +43,7 @@ Healthchecks 的两个 Lambda，以及它的数据库——s3rds 发布版服务
 cp terraform/example.json terraform/real-lambdachecks.json   # aws_profile、secret_key
 terraform -chdir=terraform init
 terraform -chdir=terraform apply -var-file=real-lambdachecks.json   # 第一次：在 Docker 里构建两种架构，要几分钟
-terraform -chdir=terraform output                                   # url、manage_function、db_url、db_user
+terraform -chdir=terraform output                                   # url、manage_function、db_url
 ```
 
 ### 2. 在浏览器里初始化
@@ -61,8 +61,8 @@ terraform -chdir=terraform output                                   # url、mana
 
 ### 3. 登录
 
-在 `url` 用上面的邮箱和密码登录。数据库：打开 `db_url`（s3rds 控制台），用 `db_user` 和
-`terraform -chdir=terraform output -raw db_password` 登录；Healthchecks 的表在 `healthchecks` 库里。
+在 `url` 用上面的邮箱和密码登录。数据库：打开 `db_url`（s3rds 控制台），用 var 文件里的
+`db_console_auth_username` / `db_console_auth_password` 登录；Healthchecks 的表在 `healthchecks` 库里。
 
 ```bash
 terraform -chdir=terraform destroy -var-file=real-lambdachecks.json   # 全部删除，包括数据库（S3 桶）
